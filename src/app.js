@@ -1,15 +1,21 @@
-import express from "express";
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
 
 const app = express();
 
-app.use(express.json());
+app.use(cors({
+       origin: process.env.CORS_ORIGIN
+}));
+app.use(express.json({limit: '16kb'}));
+app.use(express.urlencoded({extended: true, limit: '16kb'}));
+app.use(express.static('public'));
+app.use(cookieParser());
 
-app.get("/", (req, res)=> {
-    res.send("E-commerce Backend API is running!")
-})
+// Routes
+import userRouter from './routes/user.routes.js';
 
-app.listen(5000, () => {
-    console.log("Server is running on port 5000");
-})
+//Routes declaration
+app.use("/api/v1/users",userRouter);
 
 export default app;
