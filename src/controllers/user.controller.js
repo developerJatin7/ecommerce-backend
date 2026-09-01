@@ -258,6 +258,106 @@ const getCurrentUser = asyncHandler(async (req, res) => {
         );
 });
 
+const updateAccountDetails = asyncHandler(async (req, res) => {
+    const { name, email } = req.body;
+
+    if (!name || !email) {
+        throw new ApiError(
+            400,
+            "Name and email are required"
+        );
+    }
+
+    const existingUser = await User.findOne({
+        email,
+        _id: { $ne: req.user._id }
+    });
+
+    if (existingUser) {
+        throw new ApiError(
+            409,
+            "Email is already in use"
+        );
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                name,
+                email
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password -refreshToken");
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user,
+                "Account details updated successfully"
+            )
+        );
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+    const avatarLocalPath = req.file?.path;
+
+    if (!avatarLocalPath) {
+        throw new ApiError(400, "Avatar file is required");
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    if(!avatar?.secure_url){
+        throw new ApiError(500, "Failed to upload avatar to Cloudinary");
+    }
+
+    const currentUser = await User.findByIdAndUpdate(req.user._id)
+    if(!currentUser){
+        throw new ApiError(404, "User not found");
+    }
+
+    const oldAvatar = currentUser.avatar;
+
+    const updatedUser = await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                avatar: avatar.secure_url
+            }
+        },
+        {
+            new: true
+        }
+    ).select("-password -refreshToken");
+
+    if (!updatedUser) {
+        throw new ApiError(500, "Failed to update user avatar");
+    }
+
+    if (oldAvatar) {
+    await deleteFromCloudinary(oldAvatar);
+}
+
+return res
+.status(200
+    .json(
+        new ApiResponse(
+            200,
+            updatedUser,
+            "User avatar updated successfully"
+        )
+    )
+)
+});
 
 export {
     registerUser,
@@ -265,5 +365,7 @@ export {
     logoutUser,
     refreshAccessToken,
     changeCurrentPassword,
-    getCurrentUser
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar
 };
