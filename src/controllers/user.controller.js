@@ -3,6 +3,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { generateAccessAndRefreshToken } from "../utils/generateTokens.js";
+import jwt from "jsonwebtoken";
+import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 
 const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
@@ -348,7 +350,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 }
 
 return res
-.status(200
+.status(200)
     .json(
         new ApiResponse(
             200,
@@ -356,7 +358,7 @@ return res
             "User avatar updated successfully"
         )
     )
-)
+
 });
 
 export {

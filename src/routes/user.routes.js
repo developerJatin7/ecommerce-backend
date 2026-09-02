@@ -11,7 +11,7 @@ import {
 
 } from "../controllers/user.controller.js";
 import { verifyJWT } from '../middlewares/auth.middleware.js';
-
+import { upload } from "../middlewares/multer.middleware.js";
 const router = Router();
 
 router.post("/register", registerUser);
@@ -21,7 +21,8 @@ router.post("/refresh-token", refreshAccessToken);
 router.post("/change-password", verifyJWT, changeCurrentPassword);
 router.get("/me", verifyJWT, getCurrentUser);
 router.patch("/update-account", verifyJWT, updateAccountDetails);
-router.patch("/update-avatar", verifyJWT, updateUserAvatar);
+router.patch("/update-avatar",verifyJWT,upload.single("avatar"),updateUserAvatar
+);
 
 
 export default router;
