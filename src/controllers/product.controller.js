@@ -328,39 +328,46 @@ const deleteProduct = asyncHandler(async (req, res) => {
 
 const updateProductImages = asyncHandler(async (req, res) => {
     const { productId } = req.params;
+
     if (!mongoose.Types.ObjectId.isValid(productId)) {
         throw new ApiError(400, "Invalid product ID");
     }
 
-    //Check whether files were actually uploaded
     if (!req.files || req.files.length === 0) {
-        throw new ApiError(400, "No images uploaded")
+        throw new ApiError(400, "No images uploaded");
     }
 
-    // Find the product
     const product = await Product.findById(productId);
+
     if (!product) {
-        throw new ApiError(404, "Product not found")
+        throw new ApiError(404, "Product not found");
     }
 
-    // Upload new images to Cloudinary
-    const uploadedImages = []
+    const uploadedImages = [];
+
     for (const file of req.files) {
-        const uploadedImage = await uploadOnCloudinary(file.path, "products");
+        const uploadedImage =
+            await uploadOnCloudinary(
+                file.path,
+                "products"
+            );
 
-       if (
-        uploadedImage?.secure_url &&
-        uploadedImage?.public_id
-    ) {
-        uploadedImages.push({
-            url: uploadedImage.secure_url,
-            publicId: uploadedImage.public_id
-        });
+        if (
+            uploadedImage?.secure_url &&
+            uploadedImage?.public_id
+        ) {
+            uploadedImages.push({
+                url: uploadedImage.secure_url,
+                publicId: uploadedImage.public_id
+            });
+        }
     }
-}
 
     if (uploadedImages.length === 0) {
-        throw new ApiError(500, "Failed to upload images")
+        throw new ApiError(
+            500,
+            "Failed to upload images"
+        );
     }
 
     product.images.push(...uploadedImages);
@@ -374,12 +381,11 @@ const updateProductImages = asyncHandler(async (req, res) => {
             "Product images uploaded successfully"
         )
     );
-})
+});
 
 const deleteProductImage = asyncHandler(async (req, res) => {
 
-    const { productId } = req.params;
-    const { imageUrl } = req.body;
+    const { productId, imageId } = req.params;
 
     // Validate product ID
     if (!mongoose.Types.ObjectId.isValid(productId)) {
@@ -388,15 +394,11 @@ const deleteProductImage = asyncHandler(async (req, res) => {
             "Invalid product ID"
         );
     }
+    if (!mongoose.Types.ObjectId.isValid(imageId)) {
+    throw new ApiError(400, "Invalid image ID");
+}
 
-    // Validate image URL
-    if (!imageUrl) {
-        throw new ApiError(
-            400,
-            "Image URL is required"
-        );
-    }
-
+    
     // Find product
     const product = await Product.findById(productId);
 
@@ -407,16 +409,15 @@ const deleteProductImage = asyncHandler(async (req, res) => {
         );
     }
 
-    // Check whether image belongs to this product
-    const imageExists =
-        product.images.includes(imageUrl);
+    const image = product.images.id(imageId);
 
-    if (!imageExists) {
+    if (!image) {
         throw new ApiError(
             404,
-            "Image not found in product images"
+            "Image not found in this product"
         );
     }
+
 
     // Helper accepts the complete Cloudinary URL
     const cloudinaryResponse =
@@ -453,5 +454,6 @@ export {
     getAllProducts,
     getProductById,
     deleteProduct,
-    updateProductImages
+    updateProductImages,
+    deleteProductImage
 };
