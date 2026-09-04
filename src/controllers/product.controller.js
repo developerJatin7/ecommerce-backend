@@ -348,10 +348,16 @@ const updateProductImages = asyncHandler(async (req, res) => {
     for (const file of req.files) {
         const uploadedImage = await uploadOnCloudinary(file.path, "products");
 
-        if (uploadedImage?.secure_url) {
-            uploadedImages.push(uploadedImage.secure_url);
-        }
+       if (
+        uploadedImage?.secure_url &&
+        uploadedImage?.public_id
+    ) {
+        uploadedImages.push({
+            url: uploadedImage.secure_url,
+            publicId: uploadedImage.public_id
+        });
     }
+}
 
     if (uploadedImages.length === 0) {
         throw new ApiError(500, "Failed to upload images")
