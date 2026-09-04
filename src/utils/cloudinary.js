@@ -7,7 +7,7 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-const uploadOnCloudinary = async (localFilePath) => {
+const uploadOnCloudinary = async (localFilePath, folder) => {
     try {
         if (!localFilePath) {
             return null;
@@ -16,7 +16,8 @@ const uploadOnCloudinary = async (localFilePath) => {
         const response = await cloudinary.uploader.upload(
             localFilePath,
             {
-                resource_type: "auto"
+                resource_type: "auto",
+                folder: folder
             }
         );
 
@@ -45,18 +46,20 @@ const deleteFromCloudinary = async (publicIdOrUrl) => {
         let publicId = publicIdOrUrl;
 
         if (publicIdOrUrl.includes("cloudinary.com")) {
-            const urlParts = publicIdOrUrl.split("/");
-            const uploadIndex = urlParts.indexOf("upload");
+    const urlParts = publicIdOrUrl.split("/");
+    const uploadIndex = urlParts.indexOf("upload");
 
-            if (uploadIndex !== -1) {
-                publicId = urlParts
-                    .slice(uploadIndex + 1)
-                    .join("/");
+    if (uploadIndex === -1) {
+        return null;
+    }
 
-                publicId = publicId.replace(/^v\d+\//, "");
-                publicId = publicId.replace(/\.[^.]+$/, "");
-            }
-        }
+    publicId = urlParts
+        .slice(uploadIndex + 1)
+        .join("/");
+
+    publicId = publicId.replace(/^v\d+\//, "");
+    publicId = publicId.replace(/\.[^.]+$/, "");
+}
 
         return await cloudinary.uploader.destroy(
             publicId,
