@@ -11,5 +11,6 @@ const router = Router();
 router.post("/items", verifyJWT, addtoCart)
 router.get("/", verifyJWT, getCart)
 router.patch("/items/:productId", verifyJWT, updateCartItem)
+router.delete("/item/:productId", verifyJWT, removeCartItem) 
 
 export default router;

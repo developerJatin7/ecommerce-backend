@@ -258,7 +258,7 @@ const updateCartItem = asyncHandler(async (req, res) => {
     }
 
     //Update quantity
-    existingItem.quantity = quanntityNumber;
+    existingItem.quantity = quantityNumber;
 
     //Save cart
     await cart.save();
@@ -271,6 +271,49 @@ const updateCartItem = asyncHandler(async (req, res) => {
             200,
             cart,
             "Cart item updated successfully"
+        )
+    )
+})
+
+const deleteCartItem = asyncHandler(async (req, res) => {
+    //Get productId from req.params
+    const{ productId } = req.params;
+
+    //Validate productId
+    if(!mongoose.Types.ObjectId.isValid(productId)){
+        throw new ApiError(400, "Invalid product ID");
+    }
+
+    //Find user's cart
+    let cart = await Cart.findOne({ user: req.user._id});
+    if(!cart){
+        throw new ApiError(404, "Cart not found");
+    }
+
+    //Find product inside cart
+    const existingItem = cart.items.find(
+        (item) => item.product.toString() === productId
+    )
+    if(!existingItem){
+        throw new ApiError(404, "Product not found in cart");
+    }
+
+    //Remove product from cart
+    cart.items = cart.items.filter(
+        (items) => items.product.toString() !== productId
+    )
+
+    //Save cart
+    await cart.save();
+
+    //Return response
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            cart,
+            "Cart item removed successfully"
         )
     )
 })
