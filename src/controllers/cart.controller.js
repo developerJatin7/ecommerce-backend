@@ -321,5 +321,6 @@ const deleteCartItem = asyncHandler(async (req, res) => {
 export {
     addtoCart,
     getCart,
-    updateCartItem
+    updateCartItem,
+    deleteCartItem
 };

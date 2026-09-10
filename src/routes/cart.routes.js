@@ -3,7 +3,8 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
     addtoCart,
     getCart,
-    updateCartItem
+    updateCartItem,
+    deleteCartItem
 } from "../controllers/cart.controller.js";
 
 const router = Router();
