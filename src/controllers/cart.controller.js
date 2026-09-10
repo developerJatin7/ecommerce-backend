@@ -275,7 +275,7 @@ const updateCartItem = asyncHandler(async (req, res) => {
     )
 })
 
-const deleteCartItem = asyncHandler(async (req, res) => {
+const removeCartItem = asyncHandler(async (req, res) => {
     //Get productId from req.params
     const{ productId } = req.params;
 
@@ -322,5 +322,5 @@ export {
     addtoCart,
     getCart,
     updateCartItem,
-    deleteCartItem
+    removeCartItem
 };
