@@ -209,7 +209,74 @@ const getCart = asyncHandler(async (req, res) => {
     );
 });
 
+const updateCartItem = asyncHandler(async (req, res) => {
+    // Implementation for updating a cart item will go here
+    //extract productId from req.params and quantity from req.body
+    const { productId } = req.params;
+    const { quantity } = req.body;
+
+    // Validate product ID
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+        throw new ApiError(400, "Invalid product ID");
+    }
+
+    // Validate quantity
+    const quantityNumber = Number(quantity);
+    if (!Number.isInteger(quantityNumber) || quantityNumber <= 0) {
+        throw new ApiError(400, "Quantity must be a positive Integer");
+    }
+
+    // Find product
+    const product = await Product.findById(productId);
+    if (!product) {
+        throw new ApiError(404, "Product not found");
+    }
+
+    //Check product availability
+    if (!product.isActive) {
+        throw new ApiError(400, "product is not available for purchase");
+    }
+
+    //Check Stock availability
+    if (quantityNumber > product.stock) {
+        throw new ApiError(400, "Insufficient stock for the requested quantity");
+    }
+
+    //Find user's cart
+    let cart = await Cart.findOne({ user: req.user._id });
+    if (!cart) {
+        throw new ApiError(404, "Cart not found");
+    }
+
+    //Find product inside cart
+    const existingItem = cart.items.find(
+        (item)=> item.product.toString() === productId
+    )
+
+    if(!existingItem){
+        throw new ApiError(404, "Product not Found in cart");
+    }
+
+    //Update quantity
+    existingItem.quantity = quanntityNumber;
+
+    //Save cart
+    await cart.save();
+
+    //Return response
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            cart,
+            "Cart item updated successfully"
+        )
+    )
+})
+
 export {
     addtoCart,
-    getCart
+    getCart,
+    updateCartItem
 };
