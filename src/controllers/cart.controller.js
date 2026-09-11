@@ -250,10 +250,10 @@ const updateCartItem = asyncHandler(async (req, res) => {
 
     //Find product inside cart
     const existingItem = cart.items.find(
-        (item)=> item.product.toString() === productId
+        (item) => item.product.toString() === productId
     )
 
-    if(!existingItem){
+    if (!existingItem) {
         throw new ApiError(404, "Product not Found in cart");
     }
 
@@ -265,28 +265,28 @@ const updateCartItem = asyncHandler(async (req, res) => {
 
     //Return response
     return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            cart,
-            "Cart item updated successfully"
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                cart,
+                "Cart item updated successfully"
+            )
         )
-    )
 })
 
 const removeCartItem = asyncHandler(async (req, res) => {
     //Get productId from req.params
-    const{ productId } = req.params;
+    const { productId } = req.params;
 
     //Validate productId
-    if(!mongoose.Types.ObjectId.isValid(productId)){
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
         throw new ApiError(400, "Invalid product ID");
     }
 
     //Find user's cart
-    let cart = await Cart.findOne({ user: req.user._id});
-    if(!cart){
+    let cart = await Cart.findOne({ user: req.user._id });
+    if (!cart) {
         throw new ApiError(404, "Cart not found");
     }
 
@@ -294,7 +294,7 @@ const removeCartItem = asyncHandler(async (req, res) => {
     const existingItem = cart.items.find(
         (item) => item.product.toString() === productId
     )
-    if(!existingItem){
+    if (!existingItem) {
         throw new ApiError(404, "Product not found in cart");
     }
 
@@ -308,19 +308,51 @@ const removeCartItem = asyncHandler(async (req, res) => {
 
     //Return response
     return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            cart,
-            "Cart item removed successfully"
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                cart,
+                "Cart item removed successfully"
+            )
         )
+})
+
+const clearCart = asyncHandler(async (req, res) => {
+    //Find user's cart
+    const cart = await Cart.findOne(
+        {
+            user: req.user._id
+
+        }
     )
+    //Check if cart exists
+    if(!cart) {
+        throw new ApiError(404, "Cart not found")
+    }
+
+    //Clear all items from the cart
+    cart.items = [];
+
+    //Save the updated cart
+    await cart.save();
+
+    //Return response
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                cart,
+                "Cart cleared successfully"
+            )
+        )
 })
 
 export {
     addtoCart,
     getCart,
     updateCartItem,
-    removeCartItem
+    removeCartItem,
+    clearCart
 };
