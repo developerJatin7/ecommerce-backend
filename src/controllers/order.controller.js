@@ -230,7 +230,7 @@ const getOrderById = asyncHandler(async (req, res) => {
     const { orderId } = req.params;
 
     //Validate orderId
-    if(!moongoose.Types.ObjectId.isValid(orderId)) {
+    if(!mongoose.Types.ObjectId.isValid(orderId)) {
         throw new ApiError(
             400, "Invalid order ID"
         )
