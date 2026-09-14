@@ -207,4 +207,61 @@ return res.status(201).json(
 
 })
 
-export { placeOrder };
+const getMyOrders = asyncHandler(async (req, res) => {
+    // Fetch orders from user
+    const orders = await Order.find({
+        user: req.user._id
+    }).sort({
+        createdAt: -1
+    })
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            orders,
+            "Orders fetched successfully"
+        )
+    )
+})
+
+const getOrderById = asyncHandler(async (req, res) => {
+    const { orderId } = req.params;
+
+    //Validate orderId
+    if(!moongoose.Types.ObjectId.isValid(orderId)) {
+        throw new ApiError(
+            400, "Invalid order ID"
+        )
+    }
+
+    //Fetch order by ID
+    const order = await Order.findOne({
+        _id: orderId,
+        user: req.user._id
+    })
+
+    //Check if order exists
+    if(!order) {
+        throw new ApiError(
+            404, "Order not found"
+        )
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            order,
+            "Order fetched successfully"
+        )
+    )
+})
+
+export { 
+    placeOrder,
+    getMyOrders,
+    getOrderById
+};
