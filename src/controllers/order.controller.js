@@ -81,129 +81,129 @@ const placeOrder = asyncHandler(async (req, res) => {
     // Validate each product in the cart
     for (const cartItem of cart.items) {
 
-    const product = await Product.findById(
-        cartItem.product
-    );
-
-    if (!product) {
-        throw new ApiError(
-            404,
-            `Product with ID ${cartItem.product} not found`
+        const product = await Product.findById(
+            cartItem.product
         );
+
+        if (!product) {
+            throw new ApiError(
+                404,
+                `Product with ID ${cartItem.product} not found`
+            );
+        }
+
+        if (!product.isActive) {
+            throw new ApiError(
+                400,
+                `Product ${product.name} is not available for purchase`
+            );
+        }
+
+        if (cartItem.quantity > product.stock) {
+            throw new ApiError(
+                400,
+                `Insufficient stock for product ${product.name}`
+            );
+        }
+
+        const subtotal =
+            product.price * cartItem.quantity;
+
+        orderItems.push({
+            product: product._id,
+            name: product.name,
+            price: product.price,
+            quantity: cartItem.quantity,
+            subtotal
+        });
+
+        totalAmount += subtotal;
     }
 
-    if (!product.isActive) {
-        throw new ApiError(
-            400,
-            `Product ${product.name} is not available for purchase`
-        );
-    }
-
-    if (cartItem.quantity > product.stock) {
-        throw new ApiError(
-            400,
-            `Insufficient stock for product ${product.name}`
-        );
-    }
-
-    const subtotal =
-        product.price * cartItem.quantity;
-
-    orderItems.push({
-        product: product._id,
-        name: product.name,
-        price: product.price,
-        quantity: cartItem.quantity,
-        subtotal
-    });
-
-    totalAmount += subtotal;
-}
-    
 
     // Start a session for transaction
     const session = await mongoose.startSession();
 
-let order;
+    let order;
 
-try {
+    try {
 
-    session.startTransaction();
+        session.startTransaction();
 
-    const createdOrder = await Order.create(
-        [
-            {
-                user: req.user._id,
-                items: orderItems,
-                shippingAddress,
-                totalAmount,
-                paymentMethod
-            }
-        ],
-        {
-            session
-        }
-    );
-
-    order = createdOrder[0];
-
-    for (const item of orderItems) {
-
-        const updatedProduct =
-            await Product.findOneAndUpdate(
+        const createdOrder = await Order.create(
+            [
                 {
-                    _id: item.product,
-                    isActive: true,
-                    stock: {
-                        $gte: item.quantity
-                    }
-                },
-                {
-                    $inc: {
-                        stock: -item.quantity
-                    }
-                },
-                {
-                    new: true,
-                    session
+                    user: req.user._id,
+                    items: orderItems,
+                    shippingAddress,
+                    totalAmount,
+                    paymentMethod
                 }
-            );
+            ],
+            {
+                session
+            }
+        );
 
-        if (!updatedProduct) {
-            throw new ApiError(
-                400,
-                `Insufficient stock or unavailable product: ${item.name}`
-            );
+        order = createdOrder[0];
+
+        for (const item of orderItems) {
+
+            const updatedProduct =
+                await Product.findOneAndUpdate(
+                    {
+                        _id: item.product,
+                        isActive: true,
+                        stock: {
+                            $gte: item.quantity
+                        }
+                    },
+                    {
+                        $inc: {
+                            stock: -item.quantity
+                        }
+                    },
+                    {
+                        new: true,
+                        session
+                    }
+                );
+
+            if (!updatedProduct) {
+                throw new ApiError(
+                    400,
+                    `Insufficient stock or unavailable product: ${item.name}`
+                );
+            }
         }
+
+        cart.items = [];
+
+        await cart.save({
+            session
+        });
+
+        await session.commitTransaction();
+
+    } catch (error) {
+
+        await session.abortTransaction();
+
+        throw error;
+
+    } finally {
+
+        await session.endSession();
     }
 
-    cart.items = [];
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            order,
+            "Order placed successfully"
+        )
+    );
 
-    await cart.save({
-        session
-    });
-
-    await session.commitTransaction();
-
-} catch (error) {
-
-    await session.abortTransaction();
-
-    throw error;
-
-} finally {
-
-    await session.endSession();
-}
-
-return res.status(201).json(
-    new ApiResponse(
-        201,
-        order,
-        "Order placed successfully"
-    )
-);
-    
 
 })
 
@@ -216,21 +216,21 @@ const getMyOrders = asyncHandler(async (req, res) => {
     })
 
     return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            orders,
-            "Orders fetched successfully"
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                orders,
+                "Orders fetched successfully"
+            )
         )
-    )
 })
 
 const getOrderById = asyncHandler(async (req, res) => {
     const { orderId } = req.params;
 
     //Validate orderId
-    if(!mongoose.Types.ObjectId.isValid(orderId)) {
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
         throw new ApiError(
             400, "Invalid order ID"
         )
@@ -243,25 +243,43 @@ const getOrderById = asyncHandler(async (req, res) => {
     })
 
     //Check if order exists
-    if(!order) {
+    if (!order) {
         throw new ApiError(
             404, "Order not found"
         )
     }
 
     return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            order,
-            "Order fetched successfully"
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                order,
+                "Order fetched successfully"
+            )
         )
-    )
 })
 
-export { 
+const getAllOrders = asyncHandler(async (req, res) => {
+
+    const orders = await Order.find().sort({
+        createdAt: -1
+    })
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                orders,
+                "All orders fetched successfully"
+            )
+        )
+})
+
+export {
     placeOrder,
     getMyOrders,
-    getOrderById
+    getOrderById,
+    getAllOrders
 };
