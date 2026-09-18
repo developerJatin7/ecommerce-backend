@@ -261,25 +261,184 @@ const getOrderById = asyncHandler(async (req, res) => {
 })
 
 const getAllOrders = asyncHandler(async (req, res) => {
+    const {
+        page = 1,
+        limit = 10,
+        orderStatus,
+        paymentStatus
+    } = req.query;
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
 
-    const orders = await Order.find().sort({
-        createdAt: -1
-    })
+
+
+    // Validate page and limit
+    if (!Number.isInteger(pageNumber) || pageNumber < 1) {
+        throw new ApiError(
+            400,
+            "Page must be a positive integer"
+        );
+    }
+
+    if (!Number.isInteger(limitNumber) || limitNumber < 1) {
+        throw new ApiError(
+            400,
+            "Limit must be a positive integer"
+        );
+    }
+
+    // Limit the maximum number of orders returned to 100
+    if (limitNumber > 100) {
+        throw new ApiError(400,
+            "Limit cannot exceed 100"
+        )
+    }
+
+    // Define allowed order statuses and payment statuses
+    const allowedOrderStatuses = [
+        "pending",
+        "confirmed",
+        "shipped",
+        "delivered",
+        "cancelled"]
+
+    const allowedPaymentStatuses = [
+        "pending",
+        "completed",
+        "failed",
+        "refunded"]
+
+    //Validate orderStatus and paymentStatus
+    if (orderStatus && !allowedOrderStatuses.includes(orderStatus)) {
+        throw new ApiError(
+            400,
+            "Invalid order status"
+        )
+    }
+
+    if (
+        paymentStatus && !allowedPaymentStatuses.includes(paymentStatus)
+    ) {
+        throw new ApiError(
+            400,
+            "Invalid payment status"
+        );
+    }
+
+    const filter = {};
+
+    if (orderStatus) {
+        filter.orderStatus = orderStatus;
+    }
+
+    if (paymentStatus) {
+        filter.paymentStatus = paymentStatus;
+    }
+
+    //Calculate how many documents to skip
+    const skip = (pageNumber - 1) * limitNumber;
+
+    //Count all orders
+    const totalOrders = await Order.countDocuments(filter);
+
+    //Calculate total pages
+    const totalPages = Math.ceil(totalOrders / limitNumber);
+
+    const orders = await Order.find(filter)
+        .sort({
+            createdAt: -1
+        })
+        .skip(skip)
+        .limit(limitNumber);
 
     return res
         .status(200)
         .json(
             new ApiResponse(
                 200,
-                orders,
+                {
+                    orders,
+                    pagination: {
+                        totalOrders,
+                        totalPages,
+                        currentPage: pageNumber,
+                        limit: limitNumber
+                    }
+                },
                 "All orders fetched successfully"
             )
-        )
+        );
 })
+
+const updateOrderStatus = asyncHandler(async (req, res) => {
+
+    const { orderId } = req.params;
+    const { orderStatus } = req.body;
+
+    // Validate order ID
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+        throw new ApiError(
+            400,
+            "Invalid order ID"
+        );
+    }
+
+    // Make sure status was provided
+    if (!orderStatus) {
+        throw new ApiError(
+            400,
+            "Order status is required"
+        );
+    }
+
+    // Valid statuses
+    const allowedStatuses = [
+        "pending",
+        "confirmed",
+        "shipped",
+        "delivered",
+        "cancelled"
+    ];
+
+    // Validate status
+    if (!allowedStatuses.includes(orderStatus)) {
+        throw new ApiError(
+            400,
+            "Invalid order status"
+        );
+    }
+
+    // Find order
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+        throw new ApiError(
+            404,
+            "Order not found"
+        );
+    }
+
+    // Update
+    order.orderStatus = orderStatus;
+
+    await order.save();
+
+    // Response
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                order,
+                "Order status updated successfully"
+            )
+        );
+});
 
 export {
     placeOrder,
     getMyOrders,
     getOrderById,
-    getAllOrders
+    getAllOrders,
+    updateOrderStatus
 };
