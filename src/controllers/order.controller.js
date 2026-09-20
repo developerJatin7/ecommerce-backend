@@ -418,6 +418,26 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         );
     }
 
+    // Define valid status transitions
+    const allowedTransitions = {
+        pending: ["confirmed", "cancelled"],
+        confirmed: ["shipped", "cancelled"],
+        shipped: ["delivered"],
+        delivered: [],
+        cancelled: []
+    }
+
+    // Check if the status transition is allowed
+    const possibleNextStatuses =
+        allowedTransitions[order.orderStatus];
+
+    if (!possibleNextStatuses.includes(orderStatus)) {
+        throw new ApiError(
+            400,
+            `Cannot change order status from ${order.orderStatus} to ${orderStatus}`
+        );
+    }
+
     // Update
     order.orderStatus = orderStatus;
 
