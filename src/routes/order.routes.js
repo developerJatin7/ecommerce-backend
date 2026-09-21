@@ -13,8 +13,8 @@ const router = Router();
 
 router.post("/", verifyJWT, placeOrder);
 router.get("/my-orders", verifyJWT, getMyOrders);
-router.get("/:orderId", verifyJWT, getOrderById);
-router.get("/",verifyJWT , authorizeRoles("admin"), getAllOrders);
 router.patch("/:orderId/status", verifyJWT, authorizeRoles("admin"), updateOrderStatus);
+router.get("/", verifyJWT, authorizeRoles("admin"), getAllOrders);
+router.get("/:orderId", verifyJWT, getOrderById);
 
 export default router;

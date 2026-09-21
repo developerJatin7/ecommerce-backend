@@ -304,7 +304,7 @@ const getAllOrders = asyncHandler(async (req, res) => {
 
     const allowedPaymentStatuses = [
         "pending",
-        "completed",
+        "paid",
         "failed",
         "refunded"]
 
@@ -429,7 +429,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
     // Check if the status transition is allowed
     const possibleNextStatuses =
-        allowedTransitions[order.orderStatus];
+        allowedTransitions[order.orderStatus] || [];
 
     if (!possibleNextStatuses.includes(orderStatus)) {
         throw new ApiError(
@@ -438,10 +438,74 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         );
     }
 
-    // Update
-    order.orderStatus = orderStatus;
+    // Special handling for cancellation
+    if (orderStatus === "cancelled") {
 
-    await order.save();
+        const session = await mongoose.startSession();
+
+        try {
+
+            session.startTransaction();
+
+
+            // Restore stock for every ordered product
+            for (const item of order.items) {
+
+                const updatedProduct =
+                    await Product.findByIdAndUpdate(
+                        item.product,
+                        {
+                            $inc: {
+                                stock: item.quantity
+                            }
+                        },
+                        {
+                            new: true,
+                            session
+                        }
+                    );
+
+
+                if (!updatedProduct) {
+                    throw new ApiError(
+                        404,
+                        `Product not found while restoring stock: ${item.name}`
+                    );
+                }
+            }
+
+
+            // Mark order as cancelled
+            order.orderStatus = "cancelled";
+
+
+            // Save order inside transaction
+            await order.save({ session });
+
+
+            // Everything succeeded
+            await session.commitTransaction();
+
+        } catch (error) {
+
+            // Something failed → rollback
+            await session.abortTransaction();
+
+            throw error;
+
+        } finally {
+
+            // Always close session
+            session.endSession();
+        }
+
+    } else {
+
+        // Normal status change
+        order.orderStatus = orderStatus;
+
+        await order.save();
+    }
 
     // Response
     return res
