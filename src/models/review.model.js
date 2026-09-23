@@ -1,4 +1,4 @@
-import mmongoose from 'mongoose';
+import mongoose from 'mongoose';
 
 const reviewSchema = new mongoose.Schema({
     user: {

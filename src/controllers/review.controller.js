@@ -54,25 +54,38 @@ const createReview = asyncHandler(async (req, res) => {
          }
 
          //create the review
-    try {
-        const review = await Review.create({
+         let review;
+
+try {
+    review = await Review.create({
         user: req.user._id,
         product: productId,
         rating,
         comment: comment.trim()
     });
-    } catch (error) {
-        //compound unique index protection
-        if(error?.code === 11000) {
-            throw new ApiError(409, "You have already reviewed this product");
-        }
-        throw error;
+} catch (error) {
+    if (error?.code === 11000) {
+        throw new ApiError(
+            409,
+            "You have already reviewed this product"
+        );
     }
+
+    throw error;
+}
+
+return res.status(201).json(
+    new ApiResponse(
+        201,
+        review,
+        "Review created successfully"
+    )
+);
 
     return res
     .status(201)
     .json(new ApiResponse(
-        true,
+        201,
         review,
         "Review created successfully"
         
