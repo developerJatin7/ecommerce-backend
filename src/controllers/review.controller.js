@@ -241,18 +241,18 @@ const updateReview = asyncHandler(async (req, res) => {
 const deleteReview = asyncHandler(async (req, res) => {
     const { reviewId } = req.params
 
-    if(!mongoose.Types.ObjectId.isValid(reviewId)){
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
         throw new ApiError(400, "Invalid review Id")
     }
 
     //find review
     const review = await Review.findById(reviewId)
-    if(!review){
-        throw new ApiError (404, "Review not found")
+    if (!review) {
+        throw new ApiError(404, "Review not found")
     }
 
     //find ownership
-    if(!review.user.equals(req.user._id)){
+    if (!review.user.equals(req.user._id)) {
         throw new ApiError(403, "you are not authorize to delete this review")
     }
 
@@ -260,19 +260,79 @@ const deleteReview = asyncHandler(async (req, res) => {
     await review.deleteOne()
 
     return res
-    .status(200)
-    .json(
-        new ApiResponse(
-            200,
-            null,
-            "Review deleted successfully"
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                null,
+                "Review deleted successfully"
+            )
         )
-    )
+})
+
+const getProductRating = asyncHandler(async (req, res) => {
+    const { productId } = req.params
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+        throw new ApiError(400, "Invalid product ID")
+    }
+
+    const product = await Product.findById(productId)
+    if (!product || !product.isActive) {
+        throw new ApiError(
+            404,
+            "Product not found"
+        );
+    }
+
+    //Build aggregation pipeline
+    const ratingStats = await Review.aggregate([
+        {
+            $match: {
+                product: new mongoose.Types.ObjectId(productId)
+            }
+        },
+
+        {
+            $group: {
+                _id: "$product",
+
+                averageRating: { $avg: "$rating" },
+                totalReviews: { $sum: 1 }
+            }
+        }
+    ])
+
+    //Handle products with no reviews
+    const stats = ratingStats[0]
+        ? {
+            averageRating: Number(
+                ratingStats[0].averageRating.toFixed(2)
+            ),
+            totalReviews: ratingStats[0].totalReviews
+        }
+        : {
+            averageRating: 0,
+            totalReviews: 0
+        };
+
+        return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                stats,
+                "Product rating fetched successfully"
+            )
+        )
+
+
 })
 
 export {
     createReview,
     getProductReviews,
     updateReview,
-    deleteReview
+    deleteReview,
+    getProductRating
 }

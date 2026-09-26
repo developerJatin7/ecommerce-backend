@@ -61,12 +61,15 @@ const getAllProducts = asyncHandler(async (req, res) => {
         );
     }
 
-    const allowedSortOptions = [
-        "price_asc",
-        "price_desc",
-        "newest",
-        "oldest"
-    ];
+   const allowedSortOptions = [
+    "price_asc",
+    "price_desc",
+    "newest",
+    "oldest",
+    "rating_asc",
+    "rating_desc"
+];
+  
 
     if (sort && !allowedSortOptions.includes(sort)) {
         throw new ApiError(
@@ -81,22 +84,24 @@ const getAllProducts = asyncHandler(async (req, res) => {
     const limitNumber = Number(limit);
 
     if (
-        isNaN(pageNumber) || pageNumber < 1
-    ) {
-        throw new ApiError(
-            400,
-            "Page number must be a positive integer"
-        )
-    }
+    !Number.isInteger(pageNumber) ||
+    pageNumber < 1
+) {
+    throw new ApiError(
+        400,
+        "Page number must be a positive integer"
+    );
+}
 
     if (
-        isNaN(limitNumber) || limitNumber < 1
-    ) {
-        throw new ApiError(
-            400,
-            "Limit must be a positive integer"
-        )
-    }
+    !Number.isInteger(limitNumber) ||
+    limitNumber < 1
+) {
+    throw new ApiError(
+        400,
+        "Limit must be a positive integer"
+    );
+}
 
     if (limitNumber > 100) {
         throw new ApiError(
@@ -153,47 +158,126 @@ const getAllProducts = asyncHandler(async (req, res) => {
 
     }
 
-    if (minPrice && maxPrice) {
-        filter.price = {}
+    if (minPrice || maxPrice) {
+    filter.price = {};
 
-        if (minPrice) {
-            filter.price.$gte = Number(minPrice)
-        }
-
-        if (maxPrice) {
-            filter.price.$lte = Number(maxPrice)
-        }
+    if (minPrice) {
+        filter.price.$gte = Number(minPrice);
     }
 
-    const sortOptions = {};
-
-    if (sort === "price_asc") {
-        sortOptions.price = 1
+    if (maxPrice) {
+        filter.price.$lte = Number(maxPrice);
     }
+}
+// Default sorting
+let sortOptions = {
+    createdAt: -1
+};
 
-    if (sort === "price_desc") {
-        sortOptions.price = -1
-    }
+if (sort === "price_asc") {
+    sortOptions = {
+        price: 1
+    };
+}
 
-    if (sort === "newest") {
-        sortOptions.createdAt = -1;
-    }
+if (sort === "price_desc") {
+    sortOptions = {
+        price: -1
+    };
+}
 
-    if (sort === "oldest") {
-        sortOptions.createdAt = 1;
-    }
+if (sort === "newest") {
+    sortOptions = {
+        createdAt: -1
+    };
+}
+
+if (sort === "oldest") {
+    sortOptions = {
+        createdAt: 1
+    };
+}
+
+// NEW
+if (sort === "rating_asc") {
+    sortOptions = {
+        averageRating: 1,
+        createdAt: -1
+    };
+}
+
+// NEW
+if (sort === "rating_desc") {
+    sortOptions = {
+        averageRating: -1,
+        totalReviews: -1,
+        createdAt: -1
+    };
+}
 
 
     const totalProducts = await Product.countDocuments(filter);
 
     const totalPages = Math.ceil(totalProducts / limitNumber);
 
-    const products = await Product
-        .find(filter)
-        .sort(sortOptions)
-        .skip(skip)
-        .limit(limitNumber);
+   const products = await Product.aggregate([
+    {
+        $match: filter
+    },
 
+    {
+        $lookup: {
+            from: "reviews",
+            localField: "_id",
+            foreignField: "product",
+            as: "reviews"
+        }
+    },
+
+    {
+        $addFields: {
+            totalReviews: {
+                $size: "$reviews"
+            },
+
+            averageRating: {
+                $cond: [
+                    {
+                        $gt: [
+                            { $size: "$reviews" },
+                            0
+                        ]
+                    },
+                    {
+                        $round: [
+                            { $avg: "$reviews.rating" },
+                            2
+                        ]
+                    },
+                    0
+                ]
+            }
+        }
+    },
+
+    {
+        $project: {
+            reviews: 0
+        }
+    },
+
+    {
+        $sort: sortOptions
+    },
+
+    {
+        $skip: skip
+    },
+
+    {
+        $limit: limitNumber
+    }
+]);
 
     return res.status(200).json(
         new ApiResponse(

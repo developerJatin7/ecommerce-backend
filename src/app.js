@@ -18,6 +18,9 @@ import productRouter from './routes/product.routes.js';
 import cartRouter from './routes/cart.routes.js';
 import orderRouter from './routes/order.routes.js';
 import reviewRouter from './routes/review.routes.js';
+import { errorHandler } from './middlewares/error.middleware.js';
+
+
 
 //Routes declaration
 app.use("/api/v1/users",userRouter);
@@ -25,5 +28,8 @@ app.use("/api/v1/products",productRouter);
 app.use("/api/v1/cart",cartRouter);
 app.use("/api/v1/orders", orderRouter);
 app.use("/api/v1", reviewRouter);
+
+// Error handling middleware
+app.use(errorHandler);
 
 export default app;
