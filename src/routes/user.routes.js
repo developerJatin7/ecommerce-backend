@@ -12,15 +12,23 @@ import {
 } from "../controllers/user.controller.js";
 import { verifyJWT } from '../middlewares/auth.middleware.js';
 import { upload } from "../middlewares/multer.middleware.js";
+import { validate } from "../middlewares/validate.middleware.js";
+import { 
+    registerUserSchema,
+    loginUserSchema,
+    changePasswordSchema,
+    updateAccountSchema,
+    refreshTokenSchema
+ } from "../validators/user.validator.js";
 const router = Router();
 
-router.post("/register", registerUser);
-router.post("/login", loginUser);
+router.post("/register", validate(registerUserSchema), registerUser);
+router.post("/login",validate(loginUserSchema), loginUser);
 router.post("/logout", verifyJWT, logoutUser);
-router.post("/refresh-token", refreshAccessToken);
-router.post("/change-password", verifyJWT, changeCurrentPassword);
+router.post("/refresh-token", validate(refreshTokenSchema), refreshAccessToken);
+router.post("/change-password", verifyJWT, validate(changePasswordSchema), changeCurrentPassword);
 router.get("/me", verifyJWT, getCurrentUser);
-router.patch("/update-account", verifyJWT, updateAccountDetails);
+router.patch("/update-account", verifyJWT,validate(updateAccountSchema), updateAccountDetails);
 router.patch("/update-avatar",verifyJWT,upload.single("avatar"),updateUserAvatar
 );
 

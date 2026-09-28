@@ -6,54 +6,50 @@ import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 
 const createReview = asyncHandler(async (req, res) => {
-    //Get the product ID from the request parameters
-    const { productId } = req.params;
 
-    // get rating and comment from the request body
-    const { rating, comment } = req.body
+    const { productId } =
+        req.validatedData.params;
 
-    //validate the product ID
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
-        throw new ApiError(400, "Invalid product ID");
-    }
+    const { rating, comment } =
+        req.validatedData.body;
 
-    //validate the rating and comment
-    if (
-        !Number.isInteger(rating) || rating < 1 || rating > 5
-    ) {
-        throw new ApiError(400, "Rating must be an integer between 1 and 5");
-    }
 
-    if (typeof comment !== "string" || !comment.trim()) {
-        throw new ApiError(400, "Comment is required");
-    }
-
-    if (comment.trim().length > 1000) {
-        throw new ApiError(400, "Comment must be less than 1000 characters");
-    }
-
-    //check if the product exists
+    // Check whether product actually exists
     const product = await Product.findById(productId);
+
     if (!product) {
-        throw new ApiError(404, "Product not found");
+        throw new ApiError(
+            404,
+            "Product not found"
+        );
     }
 
-    //check if product is active
+
+    // Business rule:
+    // inactive products cannot be reviewed
     if (!product.isActive) {
-        throw new ApiError(400, "Cannot review an inactive product");
+        throw new ApiError(
+            400,
+            "Cannot review an inactive product"
+        );
     }
 
-    //check if the user has already reviewed the product
+
+    // Business rule:
+    // one review per user per product
     const existingReview = await Review.findOne({
         user: req.user._id,
         product: productId
     });
 
     if (existingReview) {
-        throw new ApiError(400, "You have already reviewed this product");
+        throw new ApiError(
+            409,
+            "You have already reviewed this product"
+        );
     }
 
-    //create the review
+
     let review;
 
     try {
@@ -61,9 +57,10 @@ const createReview = asyncHandler(async (req, res) => {
             user: req.user._id,
             product: productId,
             rating,
-            comment: comment.trim()
+            comment
         });
     } catch (error) {
+
         if (error?.code === 11000) {
             throw new ApiError(
                 409,
@@ -74,6 +71,7 @@ const createReview = asyncHandler(async (req, res) => {
         throw error;
     }
 
+
     return res.status(201).json(
         new ApiResponse(
             201,
@@ -81,16 +79,7 @@ const createReview = asyncHandler(async (req, res) => {
             "Review created successfully"
         )
     );
-
-    return res
-        .status(201)
-        .json(new ApiResponse(
-            201,
-            review,
-            "Review created successfully"
-
-        ))
-})
+});
 
 const getProductReviews = asyncHandler(async (req, res) => {
     //get the product ID from the request parameters
@@ -159,84 +148,54 @@ const getProductReviews = asyncHandler(async (req, res) => {
 })
 
 const updateReview = asyncHandler(async (req, res) => {
-    const { reviewId } = req.params
-    const { rating, comment } = req.body
 
-    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
-        throw new ApiError(400, "Invalid review ID")
-    }
+    const { reviewId } =
+        req.validatedData.params;
 
-    if (rating == undefined && comment == undefined) {
-        throw new ApiError(400, "Rating or comment is required")
-    }
+    const { rating, comment } =
+        req.validatedData.body;
 
-    if (rating !== undefined) {
-        if (
-            !Number.isInteger(rating) ||
-            rating < 1 ||
-            rating > 5
-        ) {
-            throw new ApiError(
-                400,
-                "Rating must be an integer between 1 and 5"
-            );
-        }
-    }
+    // Find the review
+    const review = await Review.findById(reviewId);
 
-    if (comment !== undefined) {
-
-        if (
-            typeof comment !== "string" ||
-            !comment.trim()
-        ) {
-            throw new ApiError(
-                400,
-                "Review comment cannot be empty"
-            );
-        }
-
-        if (comment.trim().length > 1000) {
-            throw new ApiError(
-                400,
-                "Review comment cannot exceed 1000 characters"
-            );
-        }
-    }
-
-    //Find Review
-    const review = await Review.findById(reviewId)
     if (!review) {
-        throw new ApiError(404, "Review not Found")
+        throw new ApiError(
+            404,
+            "Review not found"
+        );
     }
 
-    //Check Ownership
+
+    // Check ownership
     if (!review.user.equals(req.user._id)) {
-        throw new ApiError(403, "You are not authorize to update this review")
+        throw new ApiError(
+            403,
+            "You are not authorized to update this review"
+        );
     }
 
-    //Update rating only if provided
+
+    // Update only fields supplied by the client
     if (rating !== undefined) {
-        review.rating = rating
+        review.rating = rating;
     }
 
-    //Update comment only if provided
     if (comment !== undefined) {
-        review.comment = comment
-    }
+    review.comment = comment;
+}
 
-    //Save
-    await review.save()
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                review,
-                "Review Updated Successfully"
-            )
+    await review.save();
+
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            review,
+            "Review updated successfully"
         )
-})
+    );
+});
 
 const deleteReview = asyncHandler(async (req, res) => {
     const { reviewId } = req.params
@@ -316,7 +275,7 @@ const getProductRating = asyncHandler(async (req, res) => {
             totalReviews: 0
         };
 
-        return res
+    return res
         .status(200)
         .json(
             new ApiResponse(

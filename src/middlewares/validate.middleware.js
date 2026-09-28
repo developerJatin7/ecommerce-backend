@@ -6,7 +6,8 @@ const validate = (schema) => {
         const result = schema.safeParse({
             body: req.body,
             params: req.params,
-            query: req.query
+            query: req.query,
+            cookies: req.cookies
         });
 
         if (!result.success) {
@@ -22,6 +23,8 @@ const validate = (schema) => {
                 errors
             );
         }
+
+        req.validatedData = result.data;
 
         next();
     };

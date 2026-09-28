@@ -7,8 +7,11 @@ import jwt from "jsonwebtoken";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 
 const registerUser = asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body;
-
+    const {
+    name,
+    email,
+    password
+} = req.validatedData.body;
     if (
         [name, email, password].some(
             (field) => field?.trim() === ""
@@ -59,8 +62,10 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 const loginUser = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
-
+    const {
+    email,
+    password
+} = req.validatedData.body;
     if (
         [email, password].some(
             (field) => field?.trim() === ""
@@ -142,8 +147,8 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
     const incomingRefreshToken =
-        req.cookies?.refreshToken ||
-        req.body?.refreshToken;
+    req.validatedData.cookies?.refreshToken ||
+    req.validatedData.body?.refreshToken;
 
     if (!incomingRefreshToken) {
         throw new ApiError(401, "Unauthorized request");
@@ -201,52 +206,52 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
-    const { oldPassword, newPassword } = req.body;
 
-    if (!oldPassword || !newPassword) {
-        throw new ApiError(
-            400,
-            "Old password and new password are required"
+     const {
+            oldPassword,
+            newPassword
+        } = req.validatedData.body;
+
+
+        const user = await User.findById(
+            req.user._id
         );
-    }
 
-    const user = await User.findById(req.user._id);
+        if (!user) {
+            throw new ApiError(
+                404,
+                "User not found"
+            );
+        }
 
-    if (!user) {
-        throw new ApiError(404, "User not found");
-    }
 
-    const isPasswordValid =
-        await user.isPasswordCorrect(oldPassword);
+        const isPasswordValid =
+            await user.isPasswordCorrect(
+                oldPassword
+            );
 
-    if (!isPasswordValid) {
-        throw new ApiError(401, "Old password is incorrect");
-    }
+        if (!isPasswordValid) {
+            throw new ApiError(
+                400,
+                "Old password is incorrect"
+            );
+        }
 
-    const isSamePassword =
-        await user.isPasswordCorrect(newPassword);
 
-    if (isSamePassword) {
-        throw new ApiError(
-            400,
-            "New password cannot be the same as the old password"
-        );
-    }
+        user.password = newPassword;
 
-    user.password = newPassword;
+        await user.save();
 
-    await user.save();
 
-    return res
-        .status(200)
-        .json(
+        return res.status(200).json(
             new ApiResponse(
                 200,
-                {},
+                null,
                 "Password changed successfully"
             )
         );
-});
+    }
+);
 
 const getCurrentUser = asyncHandler(async (req, res) => {
     return res
@@ -261,54 +266,73 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { name, email } = req.body;
 
-    if (!name || !email) {
-        throw new ApiError(
-            400,
-            "Name and email are required"
-        );
-    }
+    const {
+            name,
+            email
+        } = req.validatedData.body;
 
-    const existingUser = await User.findOne({
-        email,
-        _id: { $ne: req.user._id }
-    });
 
-    if (existingUser) {
-        throw new ApiError(
-            409,
-            "Email is already in use"
-        );
-    }
+        if (email !== undefined) {
 
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                name,
-                email
+            const existingUser =
+                await User.findOne({
+                    email,
+                    _id: {
+                        $ne: req.user._id
+                    }
+                });
+
+            if (existingUser) {
+                throw new ApiError(
+                    409,
+                    "Email is already in use"
+                );
             }
-        },
-        {
-            new: true
         }
-    ).select("-password -refreshToken");
 
-    if (!user) {
-        throw new ApiError(404, "User not found");
-    }
 
-    return res
-        .status(200)
-        .json(
+        const user = await User.findById(
+            req.user._id
+        );
+
+        if (!user) {
+            throw new ApiError(
+                404,
+                "User not found"
+            );
+        }
+
+
+        if (name !== undefined) {
+            user.name = name;
+        }
+
+        if (email !== undefined) {
+            user.email = email;
+        }
+
+
+        await user.save();
+
+
+        const updatedUser =
+            await User.findById(
+                user._id
+            ).select(
+                "-password -refreshToken"
+            );
+
+
+        return res.status(200).json(
             new ApiResponse(
                 200,
-                user,
+                updatedUser,
                 "Account details updated successfully"
             )
         );
-});
+    }
+);
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
     const avatarLocalPath = req.file?.path;
