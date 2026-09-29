@@ -5,8 +5,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon -r dotenv --experimental-json-modules src/index.js"
-  },
+    "dev": "nodemon src/index.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -17,12 +18,17 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.4",
+    "morgan": "^1.12.1",
     "multer": "^2.3.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^30.5.2",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.3.0"
   }
 }
